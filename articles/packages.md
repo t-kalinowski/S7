@@ -1,0 +1,173 @@
+# Using S7 in a package
+
+This vignette outlines the most important things you need to know about
+using S7 in a package. S7 is new, so few people have used it in a
+package yet; this vignette is likely incomplete, and we’d love your help
+to make it better. Please [let us
+know](https://github.com/RConsortium/S7/issues/new) if you have
+questions that this vignette doesn’t answer.
+
+``` r
+
+library(S7)
+```
+
+## Getting started
+
+First, add `S7` to the `Imports` field of your `DESCRIPTION`. We then
+recommend importing all S7 functions into your package `NAMESPACE` with
+`import(S7)`, or, if you’re using roxygen2, `@import S7`.
+
+If your package also imports rlang or data.table, import `:=` from only
+S7. Otherwise, R warns that one import replaces the other when it loads
+your package. For example, to import all of rlang except `:=` with
+roxygen2:
+
+``` r
+
+#' @import S7
+#' @import rlang, except = ":="
+NULL
+```
+
+Use the same `except` argument when importing data.table.
+
+Next, create a `zzz.R` with a `.onLoad()` that calls
+[`S7_on_load()`](https://rconsortium.github.io/S7/reference/S7_on_load.md),
+an `.onUnload()` that calls
+[`S7_on_unload()`](https://rconsortium.github.io/S7/reference/S7_on_load.md),
+and a top-level call to
+[`S7_on_build()`](https://rconsortium.github.io/S7/reference/S7_on_load.md):
+
+``` r
+
+.onLoad <- function(...) {
+  S7::S7_on_load()
+}
+
+.onUnload <- function(...) {
+  S7::S7_on_unload()
+}
+
+S7::S7_on_build()
+```
+
+[`S7_on_load()`](https://rconsortium.github.io/S7/reference/S7_on_load.md)
+is S7’s way of registering methods, rather than using export directives
+in your `NAMESPACE` like S3 and S4 do. This is only strictly necessary
+if you are registering methods for generics in other packages, but
+there’s no harm in adding it and it ensures that you won’t forget later.
+
+[`S7_on_unload()`](https://rconsortium.github.io/S7/reference/S7_on_load.md)
+cleans up after
+[`S7_on_load()`](https://rconsortium.github.io/S7/reference/S7_on_load.md):
+it unregisters methods that your package registered, if they are still
+active, and removes hooks, so unloading your package doesn’t leave stale
+state behind.
+
+[`S7_on_build()`](https://rconsortium.github.io/S7/reference/S7_on_load.md)
+cleans up after `method<-`. Because `method<-` is a replacement
+function, `method(generic, class) <- fun` is evaluated as
+`generic <- method<-(generic, class, fun)`, which would otherwise leave
+a copy of `generic` in your namespace. When `generic` belongs to another
+package, `method<-` returns a sentinel value instead of the generic, and
+[`S7_on_build()`](https://rconsortium.github.io/S7/reference/S7_on_load.md)
+removes these sentinels from your namespace when the package is built.
+It must be called at the top level of `zzz.R` (i.e. *not* inside
+`.onLoad()`), after all your methods have been registered; since `zzz.R`
+is loaded last, this is usually automatic.
+
+## Classes
+
+If you want users to create instances of your class, you will need to
+export the class constructor. That means you will also need to document
+it, and since the constructor is a function, you have to document the
+arguments, which will be the properties of the class (unless you have
+customized the constructor). If you export a class (i.e. its
+constructor), you must also set the `package` argument, ensuring that
+classes with the same name are disambiguated across packages.
+
+NB: if your package creates a hierarchy of classes, subclasses must be
+defined *after* the parent classes. That means if you define the classes
+in separate files, you will need to use the `DESCRIPTION` Collate field
+(or the equivalent roxygen2 `@include` tag) to ensure the files are
+loaded in the correct order.
+
+## Generics and methods
+
+You should document generics like regular functions (since they are!).
+If you expect others to create their own methods for your generic, you
+may want to include a section describing the properties that you expect
+all methods to have. If you want to list all methods for a generic, you
+can use the [doclisting](https://doclisting.r-lib.org) package.
+
+If you use roxygen2, you can document S7 generics and methods by
+following the advice in
+[`vignette("rd-S7", package = "roxygen2")`](https://roxygen2.r-lib.org/articles/rd-S7.html).
+
+Note that methods can only be defined after both the class and generic
+have been defined. If generics/methods/classes live in different files,
+you will need to use the `DESCRIPTION` Collate field (or the equivalent
+roxygen2 `@include` tag) to ensure the files are loaded in the correct
+order.
+
+### Methods for suggested packages
+
+Use
+[`new_external_generic()`](https://rconsortium.github.io/S7/reference/new_external_generic.md)
+and
+[`new_external_class()`](https://rconsortium.github.io/S7/reference/new_external_class.md)
+to register methods for S7 generics and classes from suggested packages,
+without taking a hard dependency:
+
+``` r
+
+TheirClass <- new_external_class("theirpkg", "TheirClass")
+method(my_generic, TheirClass) <- function(x) { ... }
+
+their_generic <- new_external_generic("theirpkg", "their_generic", "x")
+method(their_generic, MyClass) <- function(x) { ... }
+```
+
+S7 will register these methods automatically when the suggested package
+is loaded, via
+[`S7_on_load()`](https://rconsortium.github.io/S7/reference/S7_on_load.md)
+as described above.
+
+## Backward compatibility
+
+### S3
+
+S7 objects are S3 objects, so it’s possible to manually register an S7
+method for an S3 generic without using `method<-`. The main thing to
+note is that the S3 class name of an S7 object is `{package}::{class}`,
+which means you’ll need to wrap the method name in `` ` ``:
+
+``` r
+
+Foo := new_class(package = "S7")
+`length.S7::Foo` <- function(x) 10
+length(Foo())
+#> [1] 10
+```
+
+### Older versions of R
+
+If you are using S7 in a package *and* you want your package to work in
+versions of R before 4.3.0, you need to know that in these versions of R
+`@` only works with S4 objects. There are two workarounds. The easiest
+but least convenient workaround is to just use
+[`prop()`](https://rconsortium.github.io/S7/reference/prop.md) instead
+of `@`. Otherwise, you can conditionally make an S7-aware `@` available
+to your package with this custom `NAMESPACE` directive:
+
+``` r
+
+# enable usage of <S7_object>@name in package code
+#' @rawNamespace if (getRversion() < "4.3.0") importFrom("S7", "@")
+NULL
+```
+
+`@` will work for users of your package because S7 automatically
+attaches an environment containing the needed definition when it’s
+loaded.

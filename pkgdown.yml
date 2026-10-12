@@ -1,23 +1,25 @@
-pandoc: 2.19.2
-pkgdown: 2.0.7
+pandoc: 3.8.3
+pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
-  S7: S7.html
+  minutes/2021-05-18: minutes/2021-05-18.html
+  minutes/2022-02-12: minutes/2022-02-12.html
+  minutes/2022-03-08: minutes/2022-03-08.html
+  minutes/2022-08-01: minutes/2022-08-01.html
+  minutes/2022-09-12: minutes/2022-09-12.html
   classes-objects: classes-objects.html
   compatibility: compatibility.html
+  spec/design: spec/design.html
+  spec/dispatch: spec/dispatch.html
+  evolution: evolution.html
   generics-methods: generics-methods.html
-  '2021-05-18': minutes/2021-05-18.html
-  '2022-02-12': minutes/2022-02-12.html
-  '2022-03-08': minutes/2022-03-08.html
-  '2022-08-01': minutes/2022-08-01.html
-  '2022-09-12': minutes/2022-09-12.html
+  motivation: motivation.html
+  packages: packages.html
   performance: performance.html
-  design: spec/design.html
-  dispatch: spec/dispatch.html
-  proposal: spec/proposal.html
-  requirements: spec/requirements.html
-last_built: 2023-06-08T00:27Z
+  spec/proposal: spec/proposal.html
+  spec/requirements: spec/requirements.html
+  S7: S7.html
+last_built: 2026-10-12T14:30Z
 urls:
-  reference: https://RConsortium.github.io/OOP-WG/reference
-  article: https://RConsortium.github.io/OOP-WG/articles
-
+  reference: https://rconsortium.github.io/S7/reference
+  article: https://rconsortium.github.io/S7/articles
